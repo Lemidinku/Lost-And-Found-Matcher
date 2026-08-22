@@ -7,7 +7,14 @@ Fixtures are built directly from the assessment brief's own worked examples
 from datetime import datetime
 
 from app.models import Report, ReportType, Category, Status
-from app.matching import score_pair, tier_for_score, build_reason
+from app.matching import (
+    score_pair,
+    tier_for_score,
+    build_reason,
+    score_color,
+    score_location,
+    score_text,
+)
 
 
 def _report(**overrides) -> Report:
@@ -86,6 +93,37 @@ FOUND_C = _report(
 )
 
 
+# --- Fixture (d): Task 3's own related-pair calibration strings --------------
+# Exact LOST_BACKPACK / FOUND_BACKPACK sentences from
+# backend/tests/test_embeddings.py, known to score cosine ~0.8029 — comfortably
+# above FLOOR (0.748). Used to exercise score_text()'s positive-score path and
+# build_reason()'s "similar item description" branch, which no other fixture
+# in this file reaches (their shorter, more repetitive text stays under FLOOR).
+
+LOST_D = _report(
+    report_type=ReportType.LOST,
+    category=Category.BAG,
+    title="Lost item: backpack",
+    description=(
+        "Black backpack containing a laptop charger. "
+        "Lost around the library on Monday afternoon."
+    ),
+    color="black",
+    location="library",
+    occurred_at=datetime(2026, 8, 17, 14, 0),
+)
+
+FOUND_D = _report(
+    report_type=ReportType.FOUND,
+    category=Category.BAG,
+    title="Found item: backpack",
+    description="Dark-colored backpack found near the library entrance Monday evening.",
+    color="dark",
+    location="library entrance",
+    occurred_at=datetime(2026, 8, 17, 18, 0),
+)
+
+
 def test_strong_or_possible_match():
     breakdown = score_pair(LOST_A, FOUND_A)
     tier = tier_for_score(breakdown.total)
@@ -128,3 +166,38 @@ def test_reason_string_format():
     assert reason[0] == reason[0].upper()
     assert reason.endswith(".")
     assert ", " in reason
+
+
+def test_blank_color_does_not_score_as_a_match():
+    """"" is a substring of every string in Python — must not be treated as a match."""
+    assert score_color("", "black") == 0
+    assert score_color("black", "") == 0
+    assert score_color("", "") == 0
+
+
+def test_blank_location_does_not_score_as_a_match():
+    """"" is a substring of every string in Python — must not be treated as a match."""
+    assert score_location("", "library") == 0
+    assert score_location("library", "") == 0
+    assert score_location("", "") == 0
+
+
+def test_text_similarity_scores_positive_for_a_genuinely_related_pair():
+    """Task 3's related-pair calibration strings (cosine ~0.8029) should clear FLOOR
+    and produce a clearly positive text score — the 30-point component's main path,
+    not exercised by fixtures (a)-(c), whose shorter/more repetitive text stays
+    under FLOOR."""
+    text_score = score_text(LOST_D, FOUND_D)
+    print(f"\nFixture (d) text score: {text_score}")
+    assert text_score >= 10
+
+
+def test_build_reason_includes_similar_item_description_when_text_score_is_high():
+    breakdown = score_pair(LOST_D, FOUND_D)
+    reason = build_reason(LOST_D, FOUND_D, breakdown)
+
+    print(f"Fixture (d) breakdown: {breakdown}, total={breakdown.total}")
+    print(f"Fixture (d) reason: {reason}")
+
+    assert breakdown.text >= 10
+    assert "similar item description" in reason

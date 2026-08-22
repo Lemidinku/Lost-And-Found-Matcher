@@ -68,6 +68,12 @@ def score_color(lost_color: str, found_color: str) -> int:
     a = _normalize_color(lost_color)
     b = _normalize_color(found_color)
 
+    # Guard against blank fields: "" is a substring of everything in Python,
+    # so without this a missing color would falsely score as a 10-point
+    # substring match against any other color.
+    if not a or not b:
+        return 0
+
     if a == b:
         return 15
     if a in b or b in a:
@@ -85,6 +91,13 @@ def _location_ratio(lost_location: str, found_location: str) -> float:
     """difflib similarity ratio, boosted to at least 0.8 if one contains the other."""
     a = lost_location.strip().lower()
     b = found_location.strip().lower()
+
+    # Guard against blank fields: "" is a substring of everything in Python,
+    # so without this a missing location would falsely trigger the "contains"
+    # boost to 0.8 against any other location.
+    if not a or not b:
+        return 0.0
+
     ratio = difflib.SequenceMatcher(None, a, b).ratio()
     if a in b or b in a:
         ratio = max(ratio, 0.8)
