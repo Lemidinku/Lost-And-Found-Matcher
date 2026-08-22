@@ -87,7 +87,18 @@ def get_matches(report_id: int, session: Session = Depends(get_session)) -> list
 
         breakdown = score_pair(lost, found)
         tier = tier_for_score(breakdown.total)
-        if tier == "Hidden":
+
+        # A pair that scores on fewer than two of the five components (e.g.
+        # nothing but date proximity) carries essentially zero relevance,
+        # even if the total happens to clear the Hidden threshold — drop it
+        # too, per the design's own "only essentially-zero-relevance pairs
+        # are dropped" intent.
+        contributing = sum(
+            1
+            for value in (breakdown.category, breakdown.color, breakdown.location, breakdown.date, breakdown.text)
+            if value > 0
+        )
+        if tier == "Hidden" or contributing < 2:
             continue
 
         reason = build_reason(lost, found, breakdown)

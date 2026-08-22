@@ -2,7 +2,7 @@
 
 Research + design options for the Nemma take-home assessment, before any code is written.
 Stack decided: **FastAPI backend + separate React frontend**, minimal web UI (forms to submit
-reports, a page to view ranked potential matches).
+reports, a page to view ranked potential matches). 
 
 ## Design philosophy: matching is advisory, not authoritative
 
@@ -103,6 +103,29 @@ Why this wins for *this* task specifically:
 - AI tools can still be used generously to *build* the app (per the brief, this doesn't count
   against us) — we're just choosing not to make AI/embeddings *part of the algorithm itself*, so
   the matching logic stays something we designed and can explain, not something we're borrowing.
+
+## Follow-up: this recommendation was partially reversed during implementation
+
+The rest of this document is left as-written — an honest record of the design reasoning at the
+time — but it's worth flagging explicitly that the shipped system does **not** follow Option D as
+recommended above. The text-similarity component ended up using a local embedding model
+(`fastembed`, `BAAI/bge-small-en-v1.5`) rather than the "no embedding model, no API key" TF-IDF/
+word-overlap approach argued for here. That happened after further discussion during design: the
+"AirPods case" vs. "earbud case" vocabulary-mismatch problem that motivated rejecting Option B in
+the first place is exactly the case that word-overlap scoring can't catch either (the two strings
+share almost no words), so a local, dependency-light embedding model was added for just that one
+component, keeping everything else — and the explainability argument that drove this whole
+recommendation — intact. See the README's "Major technical decisions" and "AI usage" sections for
+the fuller story.
+
+Worth noting as a finding in its own right: measuring the embedding component's actual
+contribution against the brief's own two worked examples afterward showed it was small — 1 of 30
+possible points on the AirPods/earbud-case pair and 6 of 30 on the backpack pair (see the README's
+"How the matching system works" section for the full breakdown). The rule-based components alone
+already carry most of the signal at this data scale. That doesn't mean the embedding component was
+a mistake — it's there for vocabulary-mismatch cases the seed data doesn't happen to stress — but
+it's a more honest picture than "embeddings solve the AirPods/earbud-case problem," which is closer
+to what this document originally argued against Option B for not being needed.
 
 ## Match presentation
 - Ranked list of candidate matches per lost (or found) report — a shortlist for a human to scan,

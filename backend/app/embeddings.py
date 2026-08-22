@@ -16,6 +16,16 @@ def _get_model() -> TextEmbedding:
     return _embedding_model
 
 
+def warm_up() -> None:
+    """Force the embedding model to load (and download, on first run).
+
+    Called from the app's startup lifespan so the one-time ~130MB
+    HuggingFace download happens while `uvicorn` is starting up, not mid
+    -request the first time a user clicks a report's matches.
+    """
+    _get_model()
+
+
 def embed(text: str) -> list[float]:
     """
     Embed text using fastembed.

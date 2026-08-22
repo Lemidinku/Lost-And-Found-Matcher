@@ -192,6 +192,41 @@ def test_matches_404_for_missing_report(client: TestClient):
     assert resp.status_code == 404
 
 
+def test_matches_omits_pair_scoring_only_on_date_proximity(client: TestClient):
+    """A pair that shares nothing but being within 24h of each other (no
+    category, color, location, or text overlap) scores 15 ("Weak", not
+    Hidden) on date alone, but carries essentially zero relevance and should
+    not surface in the matches list."""
+    lost = _report_payload(
+        report_type="lost",
+        category="electronics",
+        title="AirPods case",
+        description="I lost my black AirPods case yesterday near the cafeteria.",
+        color="black",
+        location="cafeteria",
+        occurred_at="2026-08-17T14:00:00",
+    )
+    found = _report_payload(
+        report_type="found",
+        category="accessory",
+        title="Water bottle",
+        description="Found a blue water bottle at the gym",
+        color="blue",
+        location="gym",
+        occurred_at="2026-08-18T04:00:00",  # 14 hours later: date-only overlap
+    )
+
+    lost_id = client.post("/reports", json=lost).json()["id"]
+    found_id = client.post("/reports", json=found).json()["id"]
+
+    resp = client.get(f"/reports/{lost_id}/matches")
+    assert resp.status_code == 200
+    matches = resp.json()
+
+    match = next((m for m in matches if m["report"]["id"] == found_id), None)
+    assert match is None
+
+
 def test_matches_sorted_descending_by_score(client: TestClient):
     lost_id = client.post("/reports", json=LOST_A).json()["id"]
     client.post("/reports", json=FOUND_A)

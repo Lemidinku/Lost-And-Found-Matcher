@@ -91,8 +91,18 @@ example:
 > apart."
 
 Verified end to end against the assessment brief's own worked examples: the library/backpack pair
-scores **Strong (65)**, and the AirPods-case/earbud-case pair — a genuine vocabulary mismatch that
-pure rule-based matching would likely miss — scores **Possible (52)**.
+scores **Strong (65)** (`category=20 color=8 location=16 date=15 text=6`), and the
+AirPods-case/earbud-case pair scores **Possible (52)** (`category=20 color=8 location=8 date=15
+text=1`). Looking at the actual breakdown, the embedding component's contribution on these two
+specific pairs is small — 1/30 and 6/30 — because the rule-based components already carry most of
+the signal on short descriptions like these (both pairs share category, colour, and a
+location/date match without any help from the text score). The backpack pair's "Strong" result
+does depend on those 6 points to clear the 65 threshold (59/100 without them would be "Possible,"
+not "Strong"), and the AirPods pair would still score "Possible" (51) with the text component
+removed entirely — rules alone already catch it via category + colour + date + location. At this
+data scale the embedding's real value is more about the vocabulary-mismatch cases it's *designed*
+to catch (see the design doc) than what these two seeded examples happen to demonstrate — see
+"What I'd improve" below.
 
 ![Backpack report detail with a Strong match](screenshots/02-report-detail-backpack-matches.png)
 ![AirPods case report detail with a Possible match](screenshots/03-report-detail-airpods-matches.png)
@@ -133,7 +143,7 @@ a low-quality match onto the list:
 - Authentication, per-user report ownership, and rate limiting/abuse handling.
 - Pagination and search — the report list assumes a demo-sized volume of reports.
 - CI and a broader automated test suite. Targeted unit tests exist for the scoring function and
-  the API (25 tests total), which felt like the higher-value spend for this scope, but there's no
+  the API (26 tests total), which felt like the higher-value spend for this scope, but there's no
   CI pipeline running them automatically.
 
 ## What I'd improve for a real product
@@ -207,6 +217,20 @@ uvicorn app.main:app --reload --port 8000
 The API is now running at `http://127.0.0.1:8000` (interactive docs at
 `http://127.0.0.1:8000/docs`).
 
+Note: the text-similarity component uses a local embedding model (`fastembed`,
+`BAAI/bge-small-en-v1.5`, ~130MB) that's downloaded from HuggingFace on first use rather than at
+`pip install` time. That download happens automatically at `uvicorn` startup (before the server
+starts accepting requests), so it needs network access and can take a moment the very first time
+you run the backend — after that it's cached locally and subsequent startups are fast.
+
+#### Running the tests
+
+```bash
+cd backend   # tests must be run from the backend/ directory
+# .venv already activated from the steps above
+pytest
+```
+
 ### Frontend
 
 In a second terminal:
@@ -218,11 +242,12 @@ pnpm dev
 ```
 
 The app is now running at `http://localhost:5173`. The frontend expects the backend on
-`http://127.0.0.1:8000`; both need to be running at the same time.
+`http://localhost:8000`; both need to be running at the same time.
 
 ---
 
 *Run instructions above were verified from a clean shell against this exact checkout: a fresh
 `pip install -r requirements.txt`, a from-scratch database seed (8 reports created), `uvicorn`
-serving `/reports` and `/reports/{id}/matches` correctly, and `pnpm install` + `pnpm dev` serving
-the frontend on port 5173.*
+serving `/reports` and `/reports/{id}/matches` correctly (including a live check that the
+embedding model download completes cleanly at startup), `pytest` passing all 26 tests from
+`backend/`, and `pnpm install` + `pnpm dev` serving the frontend on port 5173.*

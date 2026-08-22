@@ -191,9 +191,11 @@ def build_reason(lost: Report, found: Report, breakdown: ScoreBreakdown) -> str:
         if hours < 2:
             phrases.append("same day")
         elif hours < 24:
-            phrases.append(f"{round(hours)} hours apart")
+            hrs = round(hours)
+            phrases.append(f"{hrs} hour{'s' if hrs != 1 else ''} apart")
         else:
-            phrases.append(f"{round(hours / 24)} days apart")
+            days = round(hours / 24)
+            phrases.append(f"{days} day{'s' if days != 1 else ''} apart")
 
     # Skip below 10/30 to avoid noise from the embedding anisotropy floor.
     if breakdown.text >= 10:
