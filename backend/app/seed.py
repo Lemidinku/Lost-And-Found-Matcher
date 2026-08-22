@@ -22,13 +22,13 @@ def seed_database() -> None:
         # Base timestamp for consistent seeding
         base_time = datetime(2024, 10, 15, 10, 0, 0)
 
-        # Demo reports: library-backpack lost/found pair
+        # Demo reports: library-backpack lost/found pair (verbatim from assessment brief)
         reports = [
             Report(
                 report_type=ReportType.LOST,
                 category=Category.BAG,
                 title="Black backpack",
-                description="Black backpack with textbooks and laptop, lost at library",
+                description="Black backpack containing a laptop charger. Lost around the library on Monday afternoon.",
                 color="black",
                 location="library",
                 occurred_at=base_time,
@@ -40,22 +40,22 @@ def seed_database() -> None:
                 report_type=ReportType.FOUND,
                 category=Category.BAG,
                 title="Dark-colored backpack",
-                description="Dark backpack found near library with textbooks inside",
+                description="Dark-colored backpack found near the library entrance Monday evening.",
                 color="dark",
-                location="library",
+                location="library entrance",
                 occurred_at=base_time + timedelta(hours=4),
                 reporter_name="Bob Smith",
                 reporter_contact="bob@example.com",
                 status=Status.OPEN,
             ),
-            # AirPods-case/earbud-case lost/found pair
+            # AirPods-case/earbud-case lost/found pair (verbatim from assessment brief)
             Report(
                 report_type=ReportType.LOST,
                 category=Category.ELECTRONICS,
                 title="AirPods case",
-                description="AirPods charging case, white, lost in student center",
-                color="white",
-                location="student center",
+                description="I lost my black AirPods case yesterday near the cafeteria.",
+                color="black",
+                location="cafeteria",
                 occurred_at=base_time + timedelta(days=1),
                 reporter_name="Charlie Brown",
                 reporter_contact="charlie@example.com",
@@ -65,9 +65,9 @@ def seed_database() -> None:
                 report_type=ReportType.FOUND,
                 category=Category.ELECTRONICS,
                 title="Earbud case",
-                description="White earbud charging case found in student center cafeteria",
-                color="white",
-                location="student center",
+                description="Found a dark wireless earbud case beside the coffee shop.",
+                color="dark",
+                location="coffee shop",
                 occurred_at=base_time + timedelta(days=1, hours=6),
                 reporter_name="Diana Chen",
                 reporter_contact="diana@example.com",
