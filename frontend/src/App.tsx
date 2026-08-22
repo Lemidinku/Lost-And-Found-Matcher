@@ -1,8 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-
-function ReportListPage() {
-  return <p>Report list page (Task 8).</p>;
-}
+import ReportListPage from "./pages/ReportListPage";
 
 function NewReportPage() {
   return <p>New report form (Task 9).</p>;
