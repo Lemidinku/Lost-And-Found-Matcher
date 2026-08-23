@@ -1,7 +1,7 @@
 """Tests for the embeddings module."""
 
 import pytest
-from app.embeddings import embed, cosine_similarity, warm_up
+from app.embeddings import embed, cosine_similarity, warm_up, _embed_cached
 
 
 # Exact strings from the assessment brief
@@ -104,6 +104,34 @@ def test_embed_different_texts_produce_same_length_vectors():
     short_embedding = embed("a")
     long_embedding = embed(LOST_BACKPACK)
     assert len(short_embedding) == len(long_embedding)
+
+
+def test_embed_caches_repeated_calls():
+    """GET /reports/{id}/matches calls score_text() once per candidate, and
+    score_text() re-embeds the fixed anchor report's own text every time
+    even though it never changes across the loop. embed() memoizes by text
+    so a repeated identical string is served from cache instead of paying
+    for another model inference."""
+    _embed_cached.cache_clear()
+
+    embed(LOST_BACKPACK)
+    embed(LOST_BACKPACK)  # identical text again -> should hit the cache
+    embed(FOUND_BACKPACK)  # different text -> should miss
+
+    info = _embed_cached.cache_info()
+    assert info.hits == 1
+    assert info.misses == 2
+
+
+def test_embed_cache_returns_independent_list_objects():
+    """embed()'s contract is a fresh list[float] each call -- callers must
+    not be able to corrupt the cache by mutating a returned list in place."""
+    first = embed(LOST_BACKPACK)
+    second = embed(LOST_BACKPACK)
+    assert first == second
+    assert first is not second
+    first.append(999.0)
+    assert embed(LOST_BACKPACK) == second
 
 
 def test_warm_up_loads_the_model_without_error():

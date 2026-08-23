@@ -1,6 +1,7 @@
 """Text embeddings module using fastembed."""
 
 import math
+from functools import lru_cache
 from fastembed import TextEmbedding
 
 
@@ -26,6 +27,26 @@ def warm_up() -> None:
     _get_model()
 
 
+@lru_cache(maxsize=512)
+def _embed_cached(text: str) -> tuple[float, ...]:
+    """Actual embedding computation, memoized by text.
+
+    GET /reports/{id}/matches scores one fixed anchor report against every
+    open candidate of the opposite type, and score_text() embeds both sides
+    on every call -- the anchor's own text is identical across the whole
+    loop, so without caching it gets re-embedded once per candidate for no
+    reason. Returns a tuple (not a list) so the cached value is immutable
+    and can't be corrupted by a caller mutating what embed() hands back.
+    """
+    model = _get_model()
+    # fastembed.embed() returns an iterable of numpy arrays
+    # We convert the first (and only) result to a plain list of floats
+    embeddings = list(model.embed(text))
+    if not embeddings:
+        raise ValueError("Failed to generate embedding")
+    return tuple(embeddings[0].tolist())
+
+
 def embed(text: str) -> list[float]:
     """
     Embed text using fastembed.
@@ -34,16 +55,10 @@ def embed(text: str) -> list[float]:
         text: The text to embed.
 
     Returns:
-        A list of floats representing the embedding.
+        A list of floats representing the embedding. Always a fresh list,
+        even for repeated calls with the same text (see _embed_cached).
     """
-    model = _get_model()
-    # fastembed.embed() returns an iterable of numpy arrays
-    # We convert the first (and only) result to a plain list of floats
-    embeddings = list(model.embed(text))
-    if not embeddings:
-        raise ValueError("Failed to generate embedding")
-    # Convert numpy array to list[float]
-    return embeddings[0].tolist()
+    return list(_embed_cached(text))
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:

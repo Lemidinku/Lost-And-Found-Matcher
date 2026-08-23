@@ -4,9 +4,9 @@ These mirror `Report` (see models.py) field-for-field so the API contract
 stays in lockstep with the DB model.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.models import Category, ReportType, Status
 
@@ -24,6 +24,22 @@ class ReportCreate(BaseModel):
     occurred_at: datetime
     reporter_name: str
     reporter_contact: str
+
+    @field_validator("occurred_at")
+    @classmethod
+    def normalize_occurred_at(cls, value: datetime) -> datetime:
+        """SQLite has no timezone-aware column type, so SQLAlchemy silently
+        drops any offset instead of converting it -- two submissions of the
+        same real instant expressed with different offsets would otherwise
+        be stored as different, incomparable naive values. Converting to
+        naive UTC here, before the value ever reaches the database, makes
+        storage and comparison correct regardless of what offset a client
+        sends. Naive datetimes (e.g. from the frontend's `datetime-local`
+        input, which carries no offset at all) pass through unchanged.
+        """
+        if value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
 
 
 class ReportRead(BaseModel):
