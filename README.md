@@ -78,15 +78,13 @@ essentially zero relevance even if the raw total clears the floor. Both gates ar
 deliberately (favour recall), so a two-signal match still surfaces even when neither signal is
 individually strong.
 
-Location matching used to be plain character-level string similarity (`difflib`), but that scored
-"cafeteria" and "library" as an 8-point match purely because they happen to share a couple of
-letters — a false signal with a misleading "similar location" reason attached. Switching to
-word-overlap fixed it while keeping the genuinely-useful case ("library" inside "library
-entrance") working the same way. The colour and text-similarity components also guard against
-blank fields specifically: an empty string is a substring of everything in Python, so an unfilled
-colour or location used to score as a false partial match, and two blank descriptions embedded
-nearly identically enough to score a false *perfect* text match (30/30) — both are treated as 0
-now rather than manufacturing a match out of missing data.
+Location matching compares words, not characters, so "library" and "library entrance" share a word
+and score near-full, while short unrelated words that happen to share a couple of letters (like
+"cafeteria" and "library") score zero. The colour and text-similarity components also guard
+against blank fields: an empty string is a substring of everything in Python, so without an
+explicit check, an unfilled colour or location would score as a false partial match, and two blank
+descriptions would embed nearly identically enough to score a false *perfect* text match (30/30).
+Both are treated as 0 instead of manufacturing a match out of missing data.
 
 Text similarity is the one component that isn't a plain rule: it uses a local embedding model
 (`fastembed`, `BAAI/bge-small-en-v1.5`) to embed each report's title + description and compares
