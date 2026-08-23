@@ -227,6 +227,43 @@ def test_matches_omits_pair_scoring_only_on_date_proximity(client: TestClient):
     assert match is None
 
 
+def test_matches_omits_pair_scoring_only_on_weak_color_and_date(client: TestClient):
+    """Real-world case: an AirPods case (electronics) and an unrelated backpack
+    (bag) share only a loose color-synonym overlap (black/dark, 8 points) and
+    same-day timing (15 points) -- total 23, which used to clear the old
+    Weak floor of 15 despite completely mismatched category, location, and
+    text. Different item types shouldn't surface as a match just because
+    they're both "dark-ish" and happened on the same day."""
+    lost = _report_payload(
+        report_type="lost",
+        category="electronics",
+        title="AirPods case",
+        description="I lost my black AirPods case yesterday near the cafeteria.",
+        color="black",
+        location="cafeteria",
+        occurred_at="2026-08-17T10:00:00",
+    )
+    found = _report_payload(
+        report_type="found",
+        category="bag",
+        title="Dark-colored backpack",
+        description="Dark-colored backpack found near the library entrance.",
+        color="dark",
+        location="library entrance",
+        occurred_at="2026-08-18T06:00:00",  # 20 hours later
+    )
+
+    lost_id = client.post("/reports", json=lost).json()["id"]
+    found_id = client.post("/reports", json=found).json()["id"]
+
+    resp = client.get(f"/reports/{lost_id}/matches")
+    assert resp.status_code == 200
+    matches = resp.json()
+
+    match = next((m for m in matches if m["report"]["id"] == found_id), None)
+    assert match is None
+
+
 def test_matches_sorted_descending_by_score(client: TestClient):
     lost_id = client.post("/reports", json=LOST_A).json()["id"]
     client.post("/reports", json=FOUND_A)

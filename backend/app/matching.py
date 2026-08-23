@@ -7,7 +7,7 @@ readable scoring function so the logic can be read top to bottom without
 unrolling one large function.
 """
 
-import difflib
+import re
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -17,7 +17,7 @@ from app.models import Category, Report
 
 # Cosine-similarity floor for the text-similarity component.
 #
-# Calibrated from Task 3's three raw cosine values on the brief's own
+# Calibrated from three raw cosine values on the brief's own
 # library-backpack / earbud-case strings:
 #   - unrelated pair (backpack vs. earbud case): 0.6932907496101726
 #   - related pair   (backpack lost vs. found):  0.8028587327960973
@@ -87,21 +87,29 @@ def score_color(lost_color: str, found_color: str) -> int:
     return 0
 
 
-def _location_ratio(lost_location: str, found_location: str) -> float:
-    """difflib similarity ratio, boosted to at least 0.8 if one contains the other."""
-    a = lost_location.strip().lower()
-    b = found_location.strip().lower()
+def _location_words(location: str) -> set[str]:
+    """Lowercase, punctuation-stripped word tokens."""
+    return set(re.findall(r"\w+", location.lower()))
 
-    # Guard against blank fields: "" is a substring of everything in Python,
-    # so without this a missing location would falsely trigger the "contains"
-    # boost to 0.8 against any other location.
-    if not a or not b:
+
+def _location_ratio(lost_location: str, found_location: str) -> float:
+    """Word-overlap ratio: shared words / the smaller location's word count.
+
+    Word-level rather than character-level, so two short unrelated words that
+    happen to share a couple of letters (e.g. "cafeteria" vs "library") don't
+    score as similar the way difflib's character-based ratio did. A location
+    whose words are a subset of another's (e.g. "library" vs "library
+    entrance") naturally scores as a near-full match without needing a
+    separate substring-boost rule.
+    """
+    a_words = _location_words(lost_location)
+    b_words = _location_words(found_location)
+
+    # Guard against blank fields: an empty word set can't meaningfully overlap.
+    if not a_words or not b_words:
         return 0.0
 
-    ratio = difflib.SequenceMatcher(None, a, b).ratio()
-    if a in b or b in a:
-        ratio = max(ratio, 0.8)
-    return ratio
+    return len(a_words & b_words) / min(len(a_words), len(b_words))
 
 
 def score_location(lost_location: str, found_location: str) -> int:
@@ -127,8 +135,21 @@ def score_date(lost_occurred_at: datetime, found_occurred_at: datetime) -> int:
 
 def score_text(lost: Report, found: Report) -> int:
     """Embedding cosine similarity, rescaled against FLOOR and clamped to [0, 30]."""
-    lost_embedding = embed(f"{lost.title} {lost.description}")
-    found_embedding = embed(f"{found.title} {found.description}")
+    lost_text = f"{lost.title} {lost.description}".strip()
+    found_text = f"{found.title} {found.description}".strip()
+
+    # Guard against blank fields: two blank/whitespace-only texts embed
+    # nearly identically (cosine ~1.0), which would otherwise rescale to a
+    # false *perfect* match (30/30) on the highest-weighted component --
+    # the same failure mode already found in colour and location matching,
+    # but worse here since it hits the maximum score instead of a partial
+    # one. Neither title nor description is validated non-empty by the API
+    # schema, so this is directly reachable, not just a defensive edge case.
+    if not lost_text or not found_text:
+        return 0
+
+    lost_embedding = embed(lost_text)
+    found_embedding = embed(found_text)
     cosine = cosine_similarity(lost_embedding, found_embedding)
 
     scaled = (cosine - FLOOR) / (1 - FLOOR)
@@ -150,13 +171,23 @@ def score_pair(lost: Report, found: Report) -> ScoreBreakdown:
     )
 
 
+# Floor for the "Weak" tier. Originally 15 (any nonzero-total pair), but a
+# same-day timestamp plus a loose colour-synonym overlap alone (e.g. 8 + 15 =
+# 23 for two otherwise-unrelated items) cleared that bar despite being no
+# more meaningful than the single-component noise the tier system is meant
+# to filter out. Raised to 25 so a weak two-component coincidence like that
+# no longer surfaces, while stronger two-component pairs (e.g. an exact
+# colour match plus a location echo, >=25) still do.
+WEAK_FLOOR = 25
+
+
 def tier_for_score(total: int) -> str:
     """Map a total score onto a coarse match-confidence tier."""
     if total >= 65:
         return "Strong"
     if total >= 35:
         return "Possible"
-    if total >= 15:
+    if total >= WEAK_FLOOR:
         return "Weak"
     return "Hidden"
 

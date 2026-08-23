@@ -182,6 +182,32 @@ def test_blank_location_does_not_score_as_a_match():
     assert score_location("", "") == 0
 
 
+def test_unrelated_short_locations_do_not_score_as_similar():
+    """"cafeteria" and "library" share individual letters ('a', 'r') but no words —
+    character-level similarity (the old difflib approach) scored this 5/20 and
+    produced a misleading "similar location" reason. Word-level overlap must
+    correctly treat these as unrelated."""
+    assert score_location("cafeteria", "library") == 0
+    assert score_location("library", "cafeteria") == 0
+
+
+def test_location_that_is_a_word_subset_of_another_scores_as_a_near_full_match():
+    """"library" is entirely contained in "library entrance"'s words — this should
+    score as a strong match, same as the substring-boost the old implementation
+    special-cased, but now falling out of plain word-overlap."""
+    assert score_location("library", "library entrance") == 20
+    assert score_location("library entrance", "library") == 20
+
+
+def test_location_exact_match_scores_full():
+    assert score_location("library", "library") == 20
+
+
+def test_location_partial_word_overlap_scores_partial_credit():
+    """Sharing one of two words each should score roughly half, not zero and not full."""
+    assert score_location("main building", "building lobby") == 10
+
+
 def test_text_similarity_scores_positive_for_a_genuinely_related_pair():
     """Task 3's related-pair calibration strings (cosine ~0.8029) should clear FLOOR
     and produce a clearly positive text score — the 30-point component's main path,
@@ -201,3 +227,26 @@ def test_build_reason_includes_similar_item_description_when_text_score_is_high(
 
     assert breakdown.text >= 10
     assert "similar item description" in reason
+
+
+def test_blank_title_and_description_does_not_score_as_a_perfect_text_match():
+    """Two reports with blank/whitespace-only title+description embed nearly
+    identically (cosine ~1.0 for two copies of the same near-empty input),
+    which would otherwise rescale to the *maximum* text score (30/30) --
+    a false-perfect match on the highest-weighted component, worse than the
+    false-partial-match bugs already found in colour and location matching.
+    Neither field is validated non-empty by the API schema, so this is
+    directly reachable by any client, not just a defensive edge case."""
+    lost = _report(title="", description="")
+    found = _report(title="   ", description="   ")
+    assert score_text(lost, found) == 0
+
+
+def test_blank_text_on_only_one_side_still_scores_normally():
+    """A report with a title but no description (or vice versa) is real,
+    valid content -- only a BOTH-blank pair should be guarded against."""
+    lost = _report(title="Black backpack", description="")
+    found = _report(title="Black backpack", description="")
+    # Same non-blank title on both sides should still produce a real,
+    # non-zero embedding comparison, not get caught by the blank guard.
+    assert score_text(lost, found) > 0

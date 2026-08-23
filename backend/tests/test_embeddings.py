@@ -1,7 +1,7 @@
 """Tests for the embeddings module."""
 
 import pytest
-from app.embeddings import embed, cosine_similarity
+from app.embeddings import embed, cosine_similarity, warm_up
 
 
 # Exact strings from the assessment brief
@@ -54,3 +54,63 @@ def test_cosine_similarity_same_vector_is_one():
     emb = embed(LOST_BACKPACK)
     similarity = cosine_similarity(emb, emb)
     assert 0.99 < similarity <= 1.01  # Allow for floating point precision
+
+
+# --- Formula correctness with synthetic vectors ------------------------------
+# These don't call embed() at all: they check the cosine_similarity() math
+# itself against known values, independent of the model's actual behavior.
+
+def test_cosine_similarity_orthogonal_vectors_is_zero():
+    """Perpendicular vectors share no direction."""
+    assert cosine_similarity([1.0, 0.0], [0.0, 1.0]) == pytest.approx(0.0)
+
+
+def test_cosine_similarity_opposite_vectors_is_negative_one():
+    assert cosine_similarity([1.0, 0.0], [-1.0, 0.0]) == pytest.approx(-1.0)
+
+
+def test_cosine_similarity_identical_synthetic_vectors_is_one():
+    assert cosine_similarity([3.0, 4.0], [3.0, 4.0]) == pytest.approx(1.0)
+
+
+def test_cosine_similarity_zero_vector_returns_zero_not_a_crash():
+    """A zero vector would divide by zero in the raw dot/(norm*norm) formula;
+    the function guards against this rather than raising or returning NaN."""
+    assert cosine_similarity([0.0, 0.0, 0.0], [1.0, 2.0, 3.0]) == 0.0
+    assert cosine_similarity([0.0, 0.0], [0.0, 0.0]) == 0.0
+
+
+def test_cosine_similarity_dimension_mismatch_raises():
+    with pytest.raises(ValueError):
+        cosine_similarity([1.0, 0.0], [1.0, 0.0, 0.0])
+
+
+# --- embed() edge cases -------------------------------------------------------
+
+
+def test_embed_empty_string_does_not_crash():
+    """matching.py's score_text() calls embed() unconditionally on
+    `title + " " + description`. This codebase has already found real blank
+    -field bugs elsewhere (color, location matching), so it's worth
+    confirming an empty string doesn't crash the embedding path too."""
+    embedding = embed("")
+    assert isinstance(embedding, list)
+    assert len(embedding) > 0
+
+
+def test_embed_different_texts_produce_same_length_vectors():
+    """cosine_similarity() assumes both vectors share a dimension -- confirm
+    that holds for texts of very different lengths, not just near-duplicates."""
+    short_embedding = embed("a")
+    long_embedding = embed(LOST_BACKPACK)
+    assert len(short_embedding) == len(long_embedding)
+
+
+def test_warm_up_loads_the_model_without_error():
+    """warm_up() runs from the app's startup lifespan (main.py) so the
+    ~130MB first-run download happens at startup, not mid-request. It had no
+    direct test coverage before -- confirm it succeeds and leaves the model
+    usable afterward."""
+    warm_up()
+    embedding = embed(LOST_BACKPACK)
+    assert len(embedding) > 0
