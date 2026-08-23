@@ -204,8 +204,10 @@ git clone <this-repo-url>
 cd "Lost And Found Matcher/backend"
 
 python -m venv .venv
-# Windows:
-.venv\Scripts\activate
+# Windows (PowerShell):
+.\.venv\Scripts\Activate.ps1
+# Windows (cmd.exe):
+.venv\Scripts\activate.bat
 # macOS/Linux:
 source .venv/bin/activate
 
@@ -216,6 +218,11 @@ uvicorn app.main:app --reload --port 8000
 
 The API is now running at `http://127.0.0.1:8000` (interactive docs at
 `http://127.0.0.1:8000/docs`).
+
+> **PowerShell note:** if `Activate.ps1` fails with a script-execution error, run
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first, then retry. Or skip
+> activation entirely and call the venv's binaries directly:
+> `.\.venv\Scripts\python.exe -m app.seed` and `.\.venv\Scripts\uvicorn.exe app.main:app --reload --port 8000`.
 
 Note: the text-similarity component uses a local embedding model (`fastembed`,
 `BAAI/bge-small-en-v1.5`, ~130MB) that's downloaded from HuggingFace on first use rather than at
