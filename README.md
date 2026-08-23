@@ -66,15 +66,27 @@ across five independently-scored components that sum to 100 points:
 |---|---|---|
 | Category | 20 | Exact category match |
 | Colour | 15 | Exact match (15), one colour name contained in the other e.g. "dark" in "dark blue" (10), or both in the same synonym group like dark ≈ black/navy/charcoal (8) |
-| Location | 20 | Fuzzy string similarity between location text (`difflib`), boosted if one location contains the other |
+| Location | 20 | Shared *words* between the two location strings, scaled by the smaller side's word count — "library" vs. "library entrance" share a word and score near-full, but short unrelated words that happen to share a couple of letters (like "cafeteria" and "library") don't |
 | Date proximity | 15 | How close the lost and found timestamps are: ≤24h → full marks, decaying to 0 past a week |
 | Text similarity | 30 | Semantic similarity between the two free-text descriptions |
 
 The total score is bucketed into a tier: **Strong** (≥ 65), **Possible** (35–64), **Weak**
-(15–34), or **Hidden** (< 15). Hidden matches are dropped from the API response entirely and
-never shown to the user — the threshold for showing a pair at all is set deliberately low (favour
-recall), but pairs with essentially zero relevance are still filtered out rather than cluttering
-the list.
+(25–34), or **Hidden** (< 25). Two gates control what actually reaches the list: a pair below the
+Weak floor is dropped, and so is a pair where fewer than two of the five components contributed
+anything at all — a match justified by nothing but a same-day timestamp, for instance, carries
+essentially zero relevance even if the raw total clears the floor. Both gates are set low
+deliberately (favour recall), so a two-signal match still surfaces even when neither signal is
+individually strong.
+
+Location matching used to be plain character-level string similarity (`difflib`), but that scored
+"cafeteria" and "library" as an 8-point match purely because they happen to share a couple of
+letters — a false signal with a misleading "similar location" reason attached. Switching to
+word-overlap fixed it while keeping the genuinely-useful case ("library" inside "library
+entrance") working the same way. The colour and text-similarity components also guard against
+blank fields specifically: an empty string is a substring of everything in Python, so an unfilled
+colour or location used to score as a false partial match, and two blank descriptions embedded
+nearly identically enough to score a false *perfect* text match (30/30) — both are treated as 0
+now rather than manufacturing a match out of missing data.
 
 Text similarity is the one component that isn't a plain rule: it uses a local embedding model
 (`fastembed`, `BAAI/bge-small-en-v1.5`) to embed each report's title + description and compares
@@ -91,20 +103,22 @@ example:
 > apart."
 
 Verified end to end against the assessment brief's own worked examples: the library/backpack pair
-scores **Strong (65)** (`category=20 color=8 location=16 date=15 text=6`), and the
-AirPods-case/earbud-case pair scores **Possible (52)** (`category=20 color=8 location=8 date=15
+scores **Strong (69)** (`category=20 color=8 location=20 date=15 text=6`), and the
+AirPods-case/earbud-case pair scores **Possible (44)** (`category=20 color=8 location=0 date=15
 text=1`). Looking at the actual breakdown, the embedding component's contribution on these two
 specific pairs is small — 1/30 and 6/30 — because the rule-based components already carry most of
-the signal on short descriptions like these (both pairs share category, colour, and a
-location/date match without any help from the text score). The backpack pair's "Strong" result
-does depend on those 6 points to clear the 65 threshold (59/100 without them would be "Possible,"
-not "Strong"), and the AirPods pair would still score "Possible" (51) with the text component
-removed entirely — rules alone already catch it via category + colour + date + location. At this
-data scale the embedding's real value is more about the vocabulary-mismatch cases it's *designed*
-to catch (see the design doc) than what these two seeded examples happen to demonstrate — see
-"What I'd improve" below.
+the signal on short descriptions like these. The backpack pair's "Strong" result does depend on
+those 6 points to clear the 65 threshold (63/100 without them would be "Possible," not "Strong"),
+and the AirPods pair would still score "Possible" (43) with the text component removed entirely —
+rules alone already catch it via category, colour, and date. At this data scale the embedding's
+real value is more about the vocabulary-mismatch cases it's *designed* to catch (see the design
+doc) than what these two seeded examples happen to demonstrate — see "What I'd improve" below.
 
-![Backpack report detail with a Strong match](screenshots/02-report-detail-backpack-matches.png)
+The backpack report also picks up a second, weaker match — a blue jacket that shares nothing but
+the same location and a few days' proximity, scoring **Weak (30)**. That's the recall-favouring
+design working as intended: a human can dismiss it in two seconds, but it isn't hidden from them.
+
+![Backpack report detail with a Strong and a Weak match](screenshots/02-report-detail-backpack-matches.png)
 ![AirPods case report detail with a Possible match](screenshots/03-report-detail-airpods-matches.png)
 
 A report with nothing above the Hidden threshold simply shows no candidates, rather than forcing
@@ -131,6 +145,10 @@ a low-quality match onto the list:
 - **Separate React frontend + FastAPI backend**, rather than a single full-stack framework, for
   clean separation of concerns and because it's a widely-understood pattern that's easy to run and
   review independently.
+- **Tailwind CSS v4** for styling, and a deliberate visual direction rather than a default
+  dashboard look: a "campus lost & found desk" theme (manila-paper colours, ink-stamp tier badges,
+  a slab/typewriter type pairing) where colour carries real meaning — red for Lost, green for
+  Found and Strong matches, amber for Possible — instead of being decorative.
 
 ## What wasn't built (intentionally deferred)
 
@@ -142,9 +160,9 @@ a low-quality match onto the list:
 - Real geolocation (lat/long + radius) in place of fuzzy string matching on location names.
 - Authentication, per-user report ownership, and rate limiting/abuse handling.
 - Pagination and search — the report list assumes a demo-sized volume of reports.
-- CI and a broader automated test suite. Targeted unit tests exist for the scoring function and
-  the API (26 tests total), which felt like the higher-value spend for this scope, but there's no
-  CI pipeline running them automatically.
+- CI and a broader automated test suite. Targeted unit tests exist for the scoring function, the
+  embeddings module, and the API (41 tests total), which felt like the higher-value spend for this
+  scope, but there's no CI pipeline running them automatically.
 
 ## What I'd improve for a real product
 
@@ -191,6 +209,21 @@ added for; and the seed data initially paraphrased the assessment brief's own wo
 instead of reproducing them verbatim as the plan required, which review caught and corrected. I
 reviewed and signed off on the design and the plan at each stage rather than letting either run
 unsupervised.
+
+After the initial build, I kept working with Claude interactively against the running app rather
+than stopping at "tests pass." Actually looking at a match card surfaced a real bug the test suite
+hadn't: two unrelated locations were scoring as similar because the location matcher compared
+characters, not words. I asked Claude to explain the mechanism, we discussed switching to
+word-overlap versus a heavier embedding-based approach for location (I pushed back on the
+embedding route — same anisotropy problem already seen in the text component, and it would trade
+away the ability to explain *why* two locations matched), and Claude implemented the word-overlap
+fix with tests. I also asked Claude to specifically audit the codebase for more instances of the
+blank-field bug pattern already found once during the build; it found a third, worse case in the
+text-similarity component (two blank descriptions scored a false *perfect* 30/30 match) that
+nothing had caught before, and fixed it the same way. Finally, I asked for a full visual redesign
+in Tailwind CSS — I gave a rough goal ("polish it, use Tailwind, no bare CSS unless necessary") and
+Claude proposed and built the "campus desk" direction, which I reviewed against real screenshots
+in both light and dark mode before accepting.
 
 ## Running it locally
 
@@ -256,5 +289,5 @@ The app is now running at `http://localhost:5173`. The frontend expects the back
 *Run instructions above were verified from a clean shell against this exact checkout: a fresh
 `pip install -r requirements.txt`, a from-scratch database seed (8 reports created), `uvicorn`
 serving `/reports` and `/reports/{id}/matches` correctly (including a live check that the
-embedding model download completes cleanly at startup), `pytest` passing all 26 tests from
+embedding model download completes cleanly at startup), `pytest` passing all 41 tests from
 `backend/`, and `pnpm install` + `pnpm dev` serving the frontend on port 5173.*
