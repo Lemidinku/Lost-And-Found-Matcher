@@ -6,7 +6,7 @@ each report page shows a ranked, explained list of potential matches from the op
 Stack: **FastAPI + SQLite** backend, **React + TypeScript (Vite)** frontend, talking over a small
 JSON API.
 
-Report list
+![Report list](screenshots/01-report-list.png)
 
 ## Approach taken
 
@@ -30,7 +30,7 @@ wired together.
 Day to day, using the app is simple: browse the report list, submit a new lost or found report
 through a short form, and open any report to see its ranked matches.
 
-New report form
+![New report form](screenshots/04-new-report-form.png)
 
 ## Important assumptions made
 
@@ -117,13 +117,13 @@ The backpack report also picks up a second, weaker match — a blue jacket that 
 the same location and a few days' proximity, scoring **Weak (30)**. That's the recall-favouring
 design working as intended: a human can dismiss it in two seconds, but it isn't hidden from them.
 
-Backpack report detail with a Strong and a Weak match
-AirPods case report detail with a Possible match
+![Backpack report detail with a Strong and a Weak match](screenshots/02-report-detail-backpack-matches.png)
+![AirPods case report detail with a Possible match](screenshots/03-report-detail-airpods-matches.png)
 
 A report with nothing above the Hidden threshold simply shows no candidates, rather than forcing
 a low-quality match onto the list:
 
-New report with no matches
+![New report with no matches](screenshots/05-new-report-no-matches.png)
 
 ## Major technical decisions
 
