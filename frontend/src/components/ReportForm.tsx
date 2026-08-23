@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { createReport } from "../api";
 import type { Category, ReportType } from "../types";
@@ -14,27 +14,10 @@ const CATEGORIES: { value: Category; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-const inputStyle: CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: "6px",
-  border: "1px solid var(--border)",
-  background: "var(--bg)",
-  color: "var(--text-h)",
-  font: "inherit",
-  boxSizing: "border-box",
-};
-
-const labelStyle: CSSProperties = {
-  display: "block",
-  marginBottom: "6px",
-  fontWeight: 500,
-  color: "var(--text-h)",
-};
-
-const fieldWrapStyle: CSSProperties = {
-  marginBottom: "18px",
-};
+const inputClass =
+  "w-full rounded-md border border-ink/15 bg-paper px-3 py-2 text-ink placeholder:text-ink/30 focus:border-stamp-green focus:outline-none focus:ring-2 focus:ring-stamp-green/40";
+const labelClass = "mb-1.5 block font-medium text-ink";
+const fieldClass = "mb-5";
 
 /**
  * Converts a `datetime-local` input value (e.g. "2024-01-15T14:30", no
@@ -87,34 +70,36 @@ function ReportForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate={false}>
-      <div style={fieldWrapStyle}>
-        <span style={labelStyle}>Report type</span>
-        <div role="radiogroup" aria-label="Report type" style={{ display: "flex", gap: "8px" }}>
-          {(["lost", "found"] as ReportType[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={reportType === value}
-              onClick={() => setReportType(value)}
-              style={{
-                padding: "10px 20px",
-                borderRadius: "6px",
-                border: "1px solid var(--border)",
-                background: reportType === value ? "var(--accent-bg)" : "transparent",
-                color: reportType === value ? "var(--accent)" : "var(--text)",
-                fontWeight: reportType === value ? 600 : 400,
-                cursor: "pointer",
-              }}
-            >
-              {value === "lost" ? "Lost" : "Found"}
-            </button>
-          ))}
+    <form onSubmit={handleSubmit}>
+      <div className={fieldClass}>
+        <span className={labelClass}>Report type</span>
+        <div role="radiogroup" aria-label="Report type" className="flex gap-2">
+          {(["lost", "found"] as ReportType[]).map((value) => {
+            const active = reportType === value;
+            const activeColor =
+              value === "lost"
+                ? "border-stamp-red bg-stamp-red/10 text-stamp-red"
+                : "border-stamp-green bg-stamp-green/10 text-stamp-green";
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setReportType(value)}
+                className={`flex-1 rounded-md border-2 px-4 py-2.5 font-display font-semibold capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-green ${
+                  active ? activeColor : "border-ink/15 text-ink/50 hover:border-ink/30"
+                }`}
+              >
+                {value}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="category">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="category">
           Category
         </label>
         <select
@@ -122,7 +107,7 @@ function ReportForm() {
           required
           value={category}
           onChange={(e) => setCategory(e.target.value as Category)}
-          style={inputStyle}
+          className={inputClass}
         >
           {CATEGORIES.map(({ value, label }) => (
             <option key={value} value={value}>
@@ -132,8 +117,8 @@ function ReportForm() {
         </select>
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="title">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="title">
           Title
         </label>
         <input
@@ -142,12 +127,13 @@ function ReportForm() {
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
+          placeholder="Black backpack"
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="description">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="description">
           Description
         </label>
         <textarea
@@ -156,13 +142,14 @@ function ReportForm() {
           rows={4}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          style={{ ...inputStyle, resize: "vertical" }}
+          className={`${inputClass} resize-y`}
+          placeholder="Black backpack containing a laptop charger. Lost around the library on Monday afternoon."
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="color">
-          Color
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="color">
+          Colour
         </label>
         <input
           id="color"
@@ -170,12 +157,13 @@ function ReportForm() {
           required
           value={color}
           onChange={(e) => setColor(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
+          placeholder="Black"
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="location">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="location">
           Location
         </label>
         <input
@@ -184,12 +172,13 @@ function ReportForm() {
           required
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
+          placeholder="Library"
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="occurred_at">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="occurred_at">
           Date &amp; time
         </label>
         <input
@@ -198,12 +187,12 @@ function ReportForm() {
           required
           value={occurredAt}
           onChange={(e) => setOccurredAt(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="reporter_name">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="reporter_name">
           Your name
         </label>
         <input
@@ -212,12 +201,12 @@ function ReportForm() {
           required
           value={reporterName}
           onChange={(e) => setReporterName(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
         />
       </div>
 
-      <div style={fieldWrapStyle}>
-        <label style={labelStyle} htmlFor="reporter_contact">
+      <div className={fieldClass}>
+        <label className={labelClass} htmlFor="reporter_contact">
           Contact info
         </label>
         <input
@@ -226,29 +215,21 @@ function ReportForm() {
           required
           value={reporterContact}
           onChange={(e) => setReporterContact(e.target.value)}
-          style={inputStyle}
+          className={inputClass}
+          placeholder="you@university.edu"
         />
       </div>
 
       {error && (
-        <p role="alert" style={{ color: "#d33", marginBottom: "18px" }}>
-          {error}
+        <p role="alert" className="mb-5 text-sm text-stamp-red">
+          Couldn't submit: {error}
         </p>
       )}
 
       <button
         type="submit"
         disabled={isSubmitting}
-        style={{
-          padding: "10px 20px",
-          borderRadius: "6px",
-          border: "none",
-          background: "var(--accent)",
-          color: "var(--text-h)",
-          fontWeight: 500,
-          cursor: isSubmitting ? "default" : "pointer",
-          opacity: isSubmitting ? 0.7 : 1,
-        }}
+        className="w-full rounded-md bg-stamp-green px-4 py-2.5 font-medium text-paper transition hover:opacity-90 disabled:cursor-default disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-green"
       >
         {isSubmitting ? "Submitting…" : "Submit report"}
       </button>

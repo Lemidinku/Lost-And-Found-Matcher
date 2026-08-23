@@ -3,27 +3,24 @@ import ReportForm from "../components/ReportForm";
 
 function NewReportPage() {
   return (
-    <div style={{ padding: "24px", textAlign: "left" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
+    <div>
+      <Link
+        to="/"
+        className="mb-6 inline-block text-sm text-ink/60 no-underline hover:text-stamp-green"
       >
-        <h1 style={{ fontSize: "32px", margin: 0 }}>New report</h1>
-        <Link
-          to="/"
-          style={{ color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}
-        >
-          Back to reports
-        </Link>
-      </div>
+        &larr; Back to reports
+      </Link>
 
-      <ReportForm />
+      <div className="mx-auto max-w-xl">
+        <h1 className="mb-1 font-display text-3xl font-bold text-ink">New report</h1>
+        <p className="mb-6 text-ink/60">
+          Tell us what you lost or found — the more detail, the better a match.
+        </p>
+
+        <div className="rounded-lg border border-ink/10 bg-card p-6 shadow-sm">
+          <ReportForm />
+        </div>
+      </div>
     </div>
   );
 }

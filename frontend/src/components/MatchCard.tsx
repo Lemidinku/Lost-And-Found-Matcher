@@ -1,78 +1,40 @@
-import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
+import { formatOccurredAt } from "../format";
+import TierStamp from "./TierStamp";
 import type { MatchResult, MatchTier } from "../types";
 
-const TIER_COLORS: Record<MatchTier, { bg: string; fg: string }> = {
-  Strong: { bg: "rgba(34, 197, 94, 0.15)", fg: "#16a34a" },
-  Possible: { bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207" },
-  Weak: { bg: "rgba(107, 114, 128, 0.15)", fg: "#6b7280" },
-  Hidden: { bg: "rgba(107, 114, 128, 0.15)", fg: "#6b7280" },
-};
-
-function formatOccurredAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-const cardStyle: CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: "8px",
-  padding: "16px",
-  marginBottom: "14px",
+const REASON_BORDER: Record<MatchTier, string> = {
+  Strong: "border-stamp-green",
+  Possible: "border-stamp-amber",
+  Weak: "border-ink/30",
+  Hidden: "border-ink/30",
 };
 
 function MatchCard({ report, score, tier, reason }: MatchResult) {
-  const { bg, fg } = TIER_COLORS[tier];
-
   return (
-    <div style={cardStyle}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: "12px",
-          marginBottom: "8px",
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="rounded-lg border border-ink/10 bg-card p-4 shadow-sm">
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
         <Link
           to={`/reports/${report.id}`}
-          style={{ color: "var(--text-h)", textDecoration: "none", fontWeight: 600, fontSize: "18px" }}
+          className="font-display text-lg font-semibold text-ink no-underline hover:text-stamp-green"
         >
           {report.title}
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: "999px",
-              background: bg,
-              color: fg,
-              fontWeight: 600,
-              fontSize: "13px",
-            }}
-          >
-            {tier}
-          </span>
-          <span style={{ color: "var(--text)", fontSize: "14px" }}>Score: {score}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-stamp text-xs text-ink/45">Score {score}</span>
+          <TierStamp tier={tier} />
         </div>
       </div>
 
-      <p style={{ color: "var(--text)", marginBottom: "6px" }}>
+      <p className="mb-3 text-sm text-ink/60">
         {report.category} &middot; {report.location} &middot; {formatOccurredAt(report.occurred_at)}
       </p>
 
-      <p style={{ color: "var(--text)", fontStyle: "italic" }}>{reason}</p>
+      {reason && (
+        <p className={`border-l-2 pl-3 text-sm italic text-ink/80 ${REASON_BORDER[tier]}`}>
+          {reason}
+        </p>
+      )}
     </div>
   );
 }

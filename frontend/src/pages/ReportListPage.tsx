@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listReports } from "../api";
+import { formatOccurredAt } from "../format";
+import ReportTypeTag from "../components/ReportTypeTag";
 import type { ReportRead, ReportType } from "../types";
 
 type FilterValue = "all" | ReportType;
@@ -10,20 +12,6 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: "lost", label: "Lost" },
   { value: "found", label: "Found" },
 ];
-
-function formatOccurredAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function ReportListPage() {
   const [filter, setFilter] = useState<FilterValue>("all");
@@ -60,39 +48,21 @@ function ReportListPage() {
   }, [filter]);
 
   return (
-    <div style={{ padding: "24px", textAlign: "left" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <h1 style={{ fontSize: "32px", margin: 0 }}>Lost &amp; Found Reports</h1>
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-display text-3xl font-bold text-ink">Browse reports</h1>
         <Link
           to="/new"
-          style={{
-            display: "inline-block",
-            padding: "10px 18px",
-            borderRadius: "6px",
-            background: "var(--accent)",
-            color: "var(--text-h)",
-            textDecoration: "none",
-            fontWeight: 500,
-            whiteSpace: "nowrap",
-          }}
+          className="rounded-md bg-stamp-green px-4 py-2 font-medium text-paper no-underline transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-green"
         >
-          New report
+          + New report
         </Link>
       </div>
 
       <div
         role="tablist"
         aria-label="Filter reports by type"
-        style={{ display: "flex", gap: "8px", marginBottom: "20px" }}
+        className="mb-6 flex gap-1 border-b border-ink/10"
       >
         {FILTERS.map(({ value, label }) => (
           <button
@@ -101,75 +71,58 @@ function ReportListPage() {
             role="tab"
             aria-selected={filter === value}
             onClick={() => setFilter(value)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "6px",
-              border: "1px solid var(--border)",
-              background: filter === value ? "var(--accent-bg)" : "transparent",
-              color: filter === value ? "var(--accent)" : "var(--text)",
-              fontWeight: filter === value ? 600 : 400,
-              cursor: "pointer",
-            }}
+            className={`border-b-2 px-4 py-2 font-display text-sm uppercase tracking-wide transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-green ${
+              filter === value
+                ? "border-stamp-green text-ink"
+                : "border-transparent text-ink/45 hover:text-ink/70"
+            }`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {isLoading && <p>Loading reports…</p>}
+      {isLoading && <p className="text-ink/60">Loading reports…</p>}
 
       {!isLoading && error && (
-        <p style={{ color: "#d33" }}>Couldn't load reports: {error}</p>
+        <p className="text-stamp-red">Couldn't load reports: {error}</p>
       )}
 
       {!isLoading && !error && reports.length === 0 && (
-        <p>No reports yet.</p>
+        <div className="rounded-lg border border-dashed border-ink/25 px-6 py-10 text-center text-ink/50">
+          No reports yet. The desk is empty.
+        </div>
       )}
 
       {!isLoading && !error && reports.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid var(--border)", textAlign: "left" }}>
-              <th style={{ padding: "10px 8px" }}>Type</th>
-              <th style={{ padding: "10px 8px" }}>Category</th>
-              <th style={{ padding: "10px 8px" }}>Title</th>
-              <th style={{ padding: "10px 8px" }}>Location</th>
-              <th style={{ padding: "10px 8px" }}>Occurred</th>
-              <th style={{ padding: "10px 8px" }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((report) => (
-              <tr
-                key={report.id}
-                style={{ borderBottom: "1px solid var(--border)" }}
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {reports.map((report) => (
+            <li key={report.id}>
+              <Link
+                to={`/reports/${report.id}`}
+                className="block rounded-lg border border-ink/10 bg-card p-4 no-underline shadow-sm transition hover:-translate-y-0.5 hover:border-stamp-green/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-green"
               >
-                <td style={{ padding: "10px 8px" }}>
-                  <Link
-                    to={`/reports/${report.id}`}
-                    style={{ color: "var(--accent)", textDecoration: "none" }}
-                  >
-                    {report.report_type === "lost" ? "Lost" : "Found"}
-                  </Link>
-                </td>
-                <td style={{ padding: "10px 8px" }}>{report.category}</td>
-                <td style={{ padding: "10px 8px" }}>
-                  <Link
-                    to={`/reports/${report.id}`}
-                    style={{ color: "var(--text-h)", textDecoration: "none" }}
-                  >
-                    {report.title}
-                  </Link>
-                </td>
-                <td style={{ padding: "10px 8px" }}>{report.location}</td>
-                <td style={{ padding: "10px 8px" }}>
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <ReportTypeTag type={report.report_type} />
+                  {report.status === "resolved" && (
+                    <span className="font-stamp text-[11px] uppercase tracking-widest text-ink/35">
+                      Resolved
+                    </span>
+                  )}
+                </div>
+                <h2 className="mb-1 font-display text-lg font-semibold text-ink">
+                  {report.title}
+                </h2>
+                <p className="mb-3 text-sm text-ink/60">
+                  {report.category} &middot; {report.location}
+                </p>
+                <p className="font-stamp text-xs uppercase tracking-wide text-ink/40">
                   {formatOccurredAt(report.occurred_at)}
-                </td>
-                <td style={{ padding: "10px 8px" }}>{report.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
